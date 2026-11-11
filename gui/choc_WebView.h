@@ -129,6 +129,15 @@ public:
         /// otherwise wouldn't work by default. This lets you turn that off if you
         /// need to.
         bool enableDefaultClipboardKeyShortcutsInSafari = true;
+
+        /// On Windows, this is the folder (an absolute path, as UTF-8) that WebView2
+        /// will use for its user data. Leave it empty for the default, which is
+        /// %APPDATA%\<name of the host exe>.
+        /// A plugin should set this to a folder of its own: WebView2 fails to create
+        /// a webview (ERROR_INVALID_STATE) if another module in the same process has
+        /// already opened the same folder with a different WebView2Loader version,
+        /// and the default folder is shared by every choc-based plugin in the host.
+        std::string webview2UserDataFolder;
     };
 
     /// Creates a WebView with default options
@@ -1460,7 +1469,7 @@ private:
 
     bool createEmbeddedWebView()
     {
-        if (auto userDataFolder = getUserDataFolder(); ! userDataFolder.empty())
+        if (auto userDataFolder = getUserDataFolder (options); ! userDataFolder.empty())
         {
             COMPtr<EventHandler> handler (new EventHandler (*this));
             webviewInitialising.test_and_set();
@@ -1804,8 +1813,11 @@ private:
     std::atomic_flag webviewInitialising = ATOMIC_FLAG_INIT;
 
     //==============================================================================
-    static std::wstring getUserDataFolder()
+    static std::wstring getUserDataFolder (const Options& opts)
     {
+        if (! opts.webview2UserDataFolder.empty())
+            return createUTF16StringFromUTF8 (opts.webview2UserDataFolder);
+
         wchar_t currentExePath[MAX_PATH] = {};
         wchar_t dataPath[MAX_PATH] = {};
 
